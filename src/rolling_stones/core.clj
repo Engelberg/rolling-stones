@@ -35,7 +35,8 @@
 (defn- create-solver ^ISolver [clauses]
   (let [^ISolver solver (SolverFactory/newDefault),
         {constraints true, clauses false} (group-by constraint? clauses)        
-        max-var (apply max (map abs (apply concat clauses)))]
+        max-var (max (transduce (comp cat (map abs)) max 1 clauses)  
+                     (transduce (comp (map :literals) cat (map abs)) max 1 constraints))]
     (.newVar solver max-var)
     (.setExpectedNumberOfClauses solver (count clauses))
     (try 
@@ -193,6 +194,9 @@
   (let [literal (if-let [literal (:literal var)] literal var)]
     (and (symbol? literal)
          (clojure.string/starts-with? (name literal) "temp"))))
+
+(defn formula? [x]
+  (contains? #{Not And Or Xor Imp Iff} (type x)))
 
 (defprotocol CNF
   (encode-cnf [this] "Returns variable and clauses" ))
