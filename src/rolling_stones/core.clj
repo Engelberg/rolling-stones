@@ -266,16 +266,29 @@
   
 (defn formula->cnf [wff]
   (let [[v clauses] (encode-cnf wff)]
-    (conj (vec clauses) [v])))
+    (conj clauses [v])))
 
-(defn solve-formula [wff]
-  (let [solution (solve-general (formula->cnf wff))]
-    (filterv (complement temporary?) solution)))
-
-(defn solutions-formula [wff]
-  (let [solutions (solutions-general (formula->cnf wff))]
-    (for [solution solutions]
-      (filterv (complement temporary?) solution))))
+(defn solve-formula 
+  [wffs]
+  (b/cond
+    (sequential? wffs) 
+    (let [{constraints true, wffs false} (group-by constraint? wffs)
+          cnf (into [] (comp (map formula->cnf) cat) wffs)
+          clauses (into cnf constraints), 
+          solution (solve-general clauses)]
+      (filterv (complement temporary?) solution))  
+  :else (recur [wffs])))
+  
+(defn solutions-formula [wffs]
+  (b/cond
+    (sequential? wffs)
+    (let [{constraints true, wffs false} (group-by constraint? wffs)
+          cnf (into [] (comp (map formula->cnf) cat) wffs)
+          clauses (into cnf constraints),
+          solutions (solutions-general clauses)]
+      (for [solution solutions]
+        (filterv (complement temporary?) solution)))
+    :else (recur [wffs])))
   
 ; TBD solve-general -> solve-symbolic-cnf
 ;     solve-formula -> solve-symbolic-formula
