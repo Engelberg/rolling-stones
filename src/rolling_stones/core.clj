@@ -309,7 +309,7 @@
 (s/def ::symbolic-formula formula?)
 
 (s/fdef solve-formula
-        :args (s/cat :formulas
+        :args (s/cat :formula-or-formulas
                      (s/alt :single-formula ::symbolic-formula
                             :multiple-formulas (s/coll-of (s/or :formula ::symbolic-formula
                                                                 :constraint ::constraint)
@@ -330,7 +330,7 @@
       :else (recur [wffs] timeout))))
 
 (s/fdef solutions-formula
-        :args (s/cat :formulas
+        :args (s/cat :formula-or-formulas
                      (s/alt :single-formula ::symbolic-formula
                             :multiple-formulas (s/coll-of (s/or :formula ::symbolic-formula
                                                                 :constraint ::constraint)
@@ -351,3 +351,5 @@
   
 ; TBD solve-general -> solve-symbolic-cnf
 ;     solve-formula -> solve-symbolic-formula
+; wff -> formula
+; wffs -> formulas
