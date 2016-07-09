@@ -1,4 +1,4 @@
-(ns rolling-stones.core)
+(ns rolling-stones.core
   (:require [better-cond.core :as b])
   (:import [org.sat4j.core VecInt]
            org.sat4j.minisat.SolverFactory
@@ -85,6 +85,7 @@
 
 (defrecord Not [literal])
 (def ! ->Not)
+(def NOT ->Not)
 (defn not? [r] (instance? Not r))
 
 (defmethod clojure.core/print-method Not [x writer]
@@ -153,5 +154,126 @@
                 (take-while identity (iterate solution-iterator first-solution)))))))
 
 
-;TBD Add support for logic formulas that are not in CNF form, see org.sat4j.tools/GateTranslator
 ;Tseitin encodings
+
+(defrecord And [literals])
+(defn AND [& literals]
+  (->And literals))
+(defn and? [x]
+  (instance? AND x))
+
+(defrecord Or [literals])
+(defn OR [& literals]
+  (->Or literals))
+(defn or? [x]
+  (instance? Or x))
+
+(defrecord Xor [literal1 literal2])
+(def XOR ->Xor)
+(defn xor? [x]
+  (instance? Xor x))
+
+(defrecord Imp [literal1 literal2])
+(def IMP ->Imp)
+(defn imp? [x]
+  (instance? Imp x))
+
+(defrecord Iff [literal1 literal2])
+(def IFF ->Iff)
+(defn iff? [x]
+  (instance? Iff x))
+
+(defn NOR [& literals]
+  (NOT (apply OR literals)))
+
+(defn NAND [& literals]
+  (NOT (apply AND literals)))
+
+(defn temporary? [var]
+  (let [literal (if-let [literal (:literal var)] literal var)]
+    (and (symbol? literal)
+         (clojure.string/starts-with? (name literal) "temp"))))
+
+(defprotocol CNF
+  (encode-cnf [this] "Returns variable and clauses" ))
+
+(extend-protocol CNF
+  Object
+  (encode-cnf [this] [this []])
+  Not
+  (encode-cnf [this]
+    (let [literal (:literal this),
+          [v clauses] (encode-cnf literal)
+          not-v (gensym "temp")]
+      [not-v (into clauses [[(! v) (! not-v)]
+                            [v not-v]])]))
+  And
+  (encode-cnf [this]
+    (let [literals (:literals this),
+          vs-clauses (map encode-cnf literals),
+          vs (map first vs-clauses)
+          clauses (apply concat (map second vs-clauses)),
+          and-v (gensym "temp")]
+      [and-v (into clauses (cons
+                             (vec (cons and-v (map ! vs)))
+                             (for [v vs] [(! and-v) v])))]))
+  Or
+  (encode-cnf [this]
+    (let [literals (:literals this),
+          vs-clauses (map encode-cnf literals),
+          vs (map first vs-clauses)
+          clauses (apply concat (map second vs-clauses)),
+          or-v (gensym "temp")]
+      [or-v (into clauses (cons
+                            (vec (cons (! or-v) vs))
+                            (for [v vs] [or-v (! v)])))]))  
+  Xor
+  (encode-cnf [this]
+    (let [literal1 (:literal1 this),
+          literal2 (:literal2 this),
+          [v1 clauses1] (encode-cnf literal1)
+          [v2 clauses2] (encode-cnf literal2)
+          xor-v (gensym "temp")]
+      [xor-v (into (concat clauses1 clauses2)
+                   [[(! xor-v) (! v1) (! v2)]
+                    [xor-v v1 (! v2)]
+                    [xor-v (! v1) v2]
+                    [(! xor-v) v1 v2]])]))  
+  Imp
+  (encode-cnf [this]
+    (let [literal1 (:literal1 this),
+          literal2 (:literal2 this),
+          [v1 clauses1] (encode-cnf literal1)
+          [v2 clauses2] (encode-cnf literal2)
+          imp-v (gensym "temp")]
+      [imp-v (into (concat clauses1 clauses2)
+                   [[(! imp-v) (! v1) v2]
+                    [imp-v v1]
+                    [imp-v (! v2)]])]))
+  
+  Iff
+  (encode-cnf [this]
+    (let [literal1 (:literal1 this),
+          literal2 (:literal2 this),
+          [v1 clauses1] (encode-cnf literal1)
+          [v2 clauses2] (encode-cnf literal2)
+          iff-v (gensym "temp")]
+      [iff-v (into (concat clauses1 clauses2)
+                   [[(! iff-v) v1 (! v2)]
+                    [iff-v (! v1) (! v2)]
+                    [iff-v v1 v2]
+                    [(! iff-v) (! v1) v2]])])))
+  
+(defn formula->cnf [wff]
+  (let [[v clauses] (encode-cnf wff)]
+    (conj (vec clauses) [v])))
+
+(defn solve-formula [wff]
+  (let [solution (solve-general (formula->cnf wff))]
+    (filter (complement temporary?) solution)))
+
+(defn solutions-formula [wff]
+  (let [solutions (solutions-general (formula->cnf wff))]
+    (for [solution solutions]
+      (filter (complement temporary?) solution))))
+  
