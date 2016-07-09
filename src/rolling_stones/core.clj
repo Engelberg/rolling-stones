@@ -1,5 +1,6 @@
 (ns rolling-stones.core
-  (:require [better-cond.core :as b])
+  (:require [better-cond.core :as b]
+            [clojure.spec :as s])
   (:import [org.sat4j.core VecInt]
            org.sat4j.minisat.SolverFactory
            org.sat4j.tools.ModelIterator
@@ -52,6 +53,16 @@
     (.findModel solver)
     (catch TimeoutException e nil)))
 
+(s/def ::constraint constraint?)
+(s/def ::numeric-clause (s/coll-of (s/and int? #(not= % 0))
+                                   :into []))
+(s/fdef solve
+        :args (s/cat :clauses (s/coll-of (s/or :constraint ::constraint
+                                               :clause ::numeric-clause)
+                                         :into ())
+                     :timeout (s/? pos-int?))
+        :ret (s/nilable ::numeric-clause))
+
 (defn solve 
   ([clauses] (solve clauses nil))
   ([clauses timeout]
@@ -66,6 +77,13 @@
     (when (.isSatisfiable solver true) ; true means don't reset timer
       (.model solver))
     (catch TimeoutException e nil)))
+
+(s/fdef solutions
+        :args (s/cat :clauses (s/coll-of (s/or :constraint ::constraint
+                                               :clause ::numeric-clause)
+                                         :into ())
+                     :timeout (s/? pos-int?))
+        :ret (s/* ::numeric-clause))
 
 (defn solutions 
   ([clauses] (solutions clauses nil))
@@ -125,6 +143,15 @@
       (update clause :literals (partial mapv transform))
       (mapv transform clause))))
 
+(s/def ::symbolic-clause (s/coll-of ::s/any :into []))
+
+(s/fdef solve-general
+        :args (s/cat :clauses (s/coll-of (s/or :clause ::symbolic-clause
+                                               :constraint ::constraint) 
+                                         :into ()))
+                     :timeout (s/? pos-int?)
+        :ret (s/nilable ::symbolic-clause))
+
 (defn solve-general 
   ([clauses] (solve-general clauses nil))
   ([clauses timeout]
@@ -136,6 +163,13 @@
       :when-let [solution (.findModel solver)]
       :let [untransformed-solution ((clause-transformer int->object) solution)] 
       (vec untransformed-solution))))
+
+(s/fdef solutions-general
+        :args (s/cat :clauses (s/coll-of (s/or :clause ::symbolic-clause
+                                               :constraint ::constraint) 
+                                         :into ()))
+                     :timeout (s/? pos-int?)
+        :ret (s/* ::symbolic-clause))
 
 (defn solutions-general 
   ([clauses] (solutions-general clauses nil))
@@ -272,17 +306,38 @@
   (let [[v clauses] (encode-cnf wff)]
     (conj clauses [v])))
 
+(s/def ::symbolic-formula formula?)
+
+(s/fdef solve-formula
+        :args (s/cat :formulas
+                     (s/alt :single-formula ::symbolic-formula
+                            :multiple-formulas (s/coll-of (s/or :formula ::symbolic-formula
+                                                                :constraint ::constraint)
+                                                          :into ()))
+                     :timeout (s/? pos-int?))
+        :ret (s/nilable ::symbolic-clause))
+
 (defn solve-formula 
-  [wffs]
-  (b/cond
-    (sequential? wffs) 
-    (let [{constraints true, wffs false} (group-by constraint? wffs)
-          cnf (into [] (comp (map formula->cnf) cat) wffs)
-          clauses (into cnf constraints), 
-          solution (solve-general clauses)]
+  ([wffs] (solve-formula wffs nil))
+  ([wffs timeout]
+    (b/cond
+      (sequential? wffs) 
+      (let [{constraints true, wffs false} (group-by constraint? wffs)
+            cnf (into [] (comp (map formula->cnf) cat) wffs)
+            clauses (into cnf constraints), 
+            solution (solve-general clauses timeout)]
       (filterv (complement temporary?) solution))  
-  :else (recur [wffs])))
-  
+      :else (recur [wffs] timeout))))
+
+(s/fdef solutions-formula
+        :args (s/cat :formulas
+                     (s/alt :single-formula ::symbolic-formula
+                            :multiple-formulas (s/coll-of (s/or :formula ::symbolic-formula
+                                                                :constraint ::constraint)
+                                                          :into ()))
+                     :timeout (s/? pos-int?))
+        :ret (s/* ::symbolic-clause))
+
 (defn solutions-formula [wffs]
   (b/cond
     (sequential? wffs)
