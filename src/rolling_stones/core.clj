@@ -270,10 +270,12 @@
 
 (defn solve-formula [wff]
   (let [solution (solve-general (formula->cnf wff))]
-    (filter (complement temporary?) solution)))
+    (filterv (complement temporary?) solution)))
 
 (defn solutions-formula [wff]
   (let [solutions (solutions-general (formula->cnf wff))]
     (for [solution solutions]
-      (filter (complement temporary?) solution))))
+      (filterv (complement temporary?) solution))))
   
+; TBD solve-general -> solve-symbolic-cnf
+;     solve-formula -> solve-symbolic-formula
