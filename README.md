@@ -44,6 +44,13 @@ This answer tells us that if variable 1 (p) is set to true and variables 2 and 3
 
 Both functions take an optional second argument, the timeout in milliseconds.
 
+Unsatisfiable formulas return nil:
+
+```clojure
+=> (solve [[1] [-1]])
+nil
+```
+
 The underlying SAT solver, Sat4j, is especially interesting because it supports additional *constraints* in which you specify that at least, at most, or exactly some number of a set of variables must be true.
 
 Examples of constraints:
