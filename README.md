@@ -10,6 +10,8 @@ Satisfiability (aka SAT) was the first computer science problem to be proven NP-
 
 ## Usage
 
+Rolling Stones currently requires Clojure 1.9 alpha 9 or higher due to a dependency on the new spec library.  I may eventually move the specs to a separate namespace to make this compatible with older versions of Clojure.
+
 [rolling-stones "1.0.0-SNAPSHOT"]
 
 (require '[rolling-stones.core :as sat :refer [!]])
