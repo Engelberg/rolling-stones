@@ -74,7 +74,7 @@
 
 (defn- find-next-model [^ISolver solver]
   (try
-    (when (.isSatisfiable solver true) ; true means don't reset timer
+    (when (.isSatisfiable solver)
       (.model solver))
     (catch TimeoutException e nil)))
 
@@ -145,15 +145,15 @@
 
 (s/def ::symbolic-clause (s/coll-of ::s/any :into []))
 
-(s/fdef solve-general
+(s/fdef solve-symbolic-cnf
         :args (s/cat :clauses (s/coll-of (s/or :clause ::symbolic-clause
                                                :constraint ::constraint) 
                                          :into ()))
                      :timeout (s/? pos-int?)
         :ret (s/nilable ::symbolic-clause))
 
-(defn solve-general 
-  ([clauses] (solve-general clauses nil))
+(defn solve-symbolic-cnf 
+  ([clauses] (solve-symbolic-cnf clauses nil))
   ([clauses timeout]
     (b/cond
       :let [[object->int int->object] (build-transforms clauses)
@@ -308,7 +308,7 @@
 
 (s/def ::symbolic-formula formula?)
 
-(s/fdef solve-formula
+(s/fdef solve-symbolic-formula
         :args (s/cat :formula-or-formulas
                      (s/alt :single-formula ::symbolic-formula
                             :multiple-formulas (s/coll-of (s/or :formula ::symbolic-formula
@@ -317,15 +317,15 @@
                      :timeout (s/? pos-int?))
         :ret (s/nilable ::symbolic-clause))
 
-(defn solve-formula 
-  ([wffs] (solve-formula wffs nil))
+(defn solve-symbolic-formula 
+  ([wffs] (solve-symbolic-formula wffs nil))
   ([wffs timeout]
     (b/cond
       (sequential? wffs) 
       (let [{constraints true, wffs false} (group-by constraint? wffs)
             cnf (into [] (comp (map formula->cnf) cat) wffs)
             clauses (into cnf constraints), 
-            solution (solve-general clauses timeout)]
+            solution (solve-symbolic-cnf clauses timeout)]
       (filterv (complement temporary?) solution))  
       :else (recur [wffs] timeout))))
 
@@ -349,7 +349,3 @@
         (filterv (complement temporary?) solution)))
     :else (recur [wffs])))
   
-; TBD solve-general -> solve-symbolic-cnf
-;     solve-formula -> solve-symbolic-formula
-; wff -> formula
-; wffs -> formulas
