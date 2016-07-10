@@ -116,6 +116,8 @@ The combination of the speedy underlying Sat4j Java-based solver and the high-le
 
 As far as my own personal needs go, this project is feature complete.  However, Sat4j has a ton of extra functionality that isn't exposed here, for example, it can solve MAXSAT, Pseudo-Boolean problems, and MUS problems, and there are a bunch of alternative solving algorithms as well as tools that can read formulas out of files in a variety of standardized formats.  I would welcome pull requests that expose more aspects of the underlying solver in a similarly Clojure-friendly way.
 
+When reading the source code and creating pull requests, please note that Rolling Stones uses the [better-cond library](https://github.com/Engelberg/better-cond) which permits :let clauses in the cond.
+
 ## License
 
 Copyright © 2016 Mark Engelberg
