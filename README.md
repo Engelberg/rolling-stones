@@ -114,7 +114,7 @@ The combination of the speedy underlying Sat4j Java-based solver and the high-le
 
 ## Roadmap
 
-As far as my own personal needs go, this project is feature complete.  However, Sat4j has a ton of extra functionality that isn't exposed here, for example, it can solve MAXSAT, Pseudo-Boolean problems, and MUS problems, and there are a bunch of alternative solving altorithms as well as tools that can read formulas out of files in a variety of standardized formats.  I would welcome pull requests that expose more aspects of the underlying solver in a similarly Clojure-friendly way.
+As far as my own personal needs go, this project is feature complete.  However, Sat4j has a ton of extra functionality that isn't exposed here, for example, it can solve MAXSAT, Pseudo-Boolean problems, and MUS problems, and there are a bunch of alternative solving algorithms as well as tools that can read formulas out of files in a variety of standardized formats.  I would welcome pull requests that expose more aspects of the underlying solver in a similarly Clojure-friendly way.
 
 ## License
 
