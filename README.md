@@ -250,15 +250,17 @@ As in the integer case, a convenience function `true-symbolic-variables` is prov
 * Symbolic Variables, Conjunctive Normal Form
   + `solve-symbolic-cnf`
   + `solutions-symbolic-cnf`
+  + `!` to represent the Not of a variable
 * Symbolic Variables, any logic formula
   + `solve-symbolic-formula`
   + `solutions-symbolic-formula`
+  + `NOT` (same as `!`), `AND`, `OR`, `XOR`, `IFF`, `IMP`, `NAND`, `NOR` to build formula
 * Manipulating integer solutions
   + Use clojure.core's `pos?`, `neg?`, and `-`
   + `true-integer-variables` builds a set of the true integer variables, i.e., the positive integers
 * Manipulating symbolic solutions
   + Use rolling-stones.core's `positive?`, `negative?`, and `negate`
-  + `true-symbolic-variables` builds a set of the true symbolic variables, i.e., any Clojure data that isn't wrapped in a Not.
+  + `true-symbolic-variables` builds a set of the true symbolic variables, i.e., any Clojure data that isn't a Not.
 
 ## Roadmap
 
