@@ -150,9 +150,13 @@ Examples:
 
 ; Swap true and false variables
 => (mapv - [1 -2 -3])
+```
 
+I find that 90% of the time, I want to build up a set of all the true variables so I can query against it.  So I've added a convenience function to do just that, namely `true-integer-variables`.
+
+```clojure
 ; Collect all the true variables into a set
-=> (def true-set (into {} (filter pos?) [1 -2 -3]))
+(def true-set (true-integer-variables [1 -2 -3]))
 
 ; Test if a specific variable is true
 => (contains? true-set 1)
@@ -161,13 +165,11 @@ true
 false
 ```
 
-So you can do whatever you want to the result, but personally I find that 90% of the time I want to build up a set of all the true variables so I can query against it.  So I've added a convenience function to do just that, namely `true-integer-variables`.  So the above example could be rewritten as:
+Of course, you can accomplish the same thing nearly as concisely with Clojure's built-in functions:
 
 ```clojure
-(def true-set (true-integer-variables [1 -2 -3]))
+(def true-set (into #{} (filter pos?) [1 -2 -3]))
 ```
-
-This isn't much more concise that just explicitly using `(into {} (filter pos?) ...)`, but it's there if you want to use it.
 
 #### Symbolic variable solutions
 
@@ -225,21 +227,22 @@ With these tools in place, you can do exactly the same sorts of manipulations th
 
 ; Swap true and false variables
 => (mapv sat/negate [:p (! :q) (! :r)])
+```
 
+Again, there is a convenience function to collect the true symbolic variables into a set.
+
+```clojure
 ; Collect all the true variables into a set
-=> (def true-set (into {} (filter sat/positive?) [:p (! :q) (! :r)]))
+(def true-set (true-symbolic-variables [:p (! :q) (! :r)]))
+
+; or you can use Clojure's functions to accomplish the same thing
+(def true-set (into #{} (filter sat/positive?) [:p (! :q) (! :r)]))
 
 ; Test if a specific variable is true
 => (contains? true-set :p)
 true
 => (contains? true-set :q)
 false
-```
-
-As in the integer case, a convenience function `true-symbolic-variables` is provided to build a set of true variables, since that is the most common need:
-
-```clojure
-(def true-set (true-symbolic-variables [:p (! :q) (! :r)]))
 ```
 
 ## API Summary
