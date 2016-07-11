@@ -12,9 +12,11 @@ Satisfiability (aka SAT) was the first computer science problem to be proven NP-
 
 Rolling Stones currently requires Clojure 1.9 alpha 9 or higher due to a dependency on the new spec library.  I may eventually move the specs to a separate namespace to make this compatible with older versions of Clojure.
 
+```
 [rolling-stones "1.0.0-SNAPSHOT"]
 
 (require '[rolling-stones.core :as sat :refer [!]])
+```
 
 ### Conjunctive Normal Form
 
@@ -88,6 +90,16 @@ For the purposes of our example, let's use keywords for our variables (although 
 ([:p :q (! :r)] [:p :q :r])
 ```
 
+But remember, you can use any Clojure data you want to denote variables. You don't need to restrict yourself to keywords.  As a somewhat crazy example, let's replace `:p` with `{:name "Bob"}`, `:q` with `[2 6]` and `:r` with `#{4}`.
+
+```clojure
+=> (sat/solve-symbolic-formula [[{:name "Bob"}] [{:name "Bob"} [2 6]]
+                                [(! {:name "Bob"}) [2 6] (! #{4})]])
+[[{:name "Bob"}] [{:name "Bob"} [2 6]] [(! {:name Bob}) [2 6] (! #{4})]]
+```
+
+Behind the scenes, Rolling Stones is simply translating each distinct Clojure value to a distinct integer (negative integer if wrapped in a `!`) and passing it to the integer variable solver discussed above, then translating the output back into the Clojure values you used.
+
 ### Symbolic formulas
 
 If you don't have your logical formula in conjunctive normal form, you can build it using the functions AND, OR, NOT (which is just an alias for !), XOR, IFF (if and only if, aka biconditional), IMP (for implies, aka conditional, e.g., P -> Q), NOR, and NAND -- Rolling Stones will convert the formula to CNF for you.  These are Clojure functions, so we express our formulas with prefix notation.  AND, OR, NOR, and NAND take any number of inputs, NOT of course takes only one input, and the rest take exactly two inputs.
@@ -110,13 +122,147 @@ or a sequence of formulas and/or constraints which are implicitly joined with AN
 [:p (! :q) (! :r)]
 ```
 
-The combination of the speedy underlying Sat4j Java-based solver and the high-level ease of manipulating symbolic data via Clojure makes for a very powerful combination.
+Behind the scenes, Rolling Stones is expanding the formula into conjunctive normal form by way of something called Tseitin encoding, which introduces a temporary variable for each sub-expression in the formula.  It solves the expression using the above solver, and then reports back the values of all the original variables (ignoring the temporary variables it created).
+
+As you can see, the combination of the speedy underlying Sat4j Java-based solver and the high-level ease of manipulating symbolic data via Clojure makes for a very powerful combination.
+
+### Working with the output
+
+Now that you've solved your logical formula, what do you do with the output?  There are two types of formulas supported by Rolling Stones -- those where the variables are represented by integers, and those where the variables are represented symbolically by arbitrary data.  Let's look at each of these formula types in turn.
+
+#### Integer variable solutions
+
+The output from `solve`, the solver for integer variable CNF inputs, will be a vector of numbers, positive for true and negative for false, e.g., `[1 -2 -3]`.
+
+So Clojure's `pos?` predicate is our tool for testing for a true variable, `neg?` is our tool for testing for a false variable, and `-` is the way we negate variables, changing true to false and false to true.  This gives us everything we need to manipulate the result.
+
+Examples:
+
+```clojure
+; Get all true variables
+=> (filter pos? [1 -2 -3])
+
+; Get all false variables
+=> (filter neg? [1 -2 -3])
+
+; Get all false variables, drop the minus sign
+=> (map - (filter neg? [1 -2 -3]))
+
+; Swap true and false variables
+=> (mapv - [1 -2 -3])
+
+; Collect all the true variables into a set
+=> (def true-set (into {} (filter pos?) [1 -2 -3]))
+
+; Test if a specific variable is true
+=> (contains? true-set 1)
+true
+=> (contains? true-set 2)
+false
+```
+
+So you can do whatever you want to the result, but personally I find that 90% of the time I want to build up a set of all the true variables so I can query against it.  So I've added a convenience function to do just that, namely `true-integer-variables`.  So the above example could be rewritten as:
+
+```clojure
+(def true-set (true-integer-variables [1 -2 -3]))
+```
+
+This isn't much more concise that just explicitly using `(into {} (filter pos?) ...)`, but it's there if you want to use it.
+
+#### Symbolic variable solutions
+
+When you use one of the symbolic solves, you get back a result like `[:p (! :q) (! :r)]`.  What exactly does this mean?  Specifically, how is a not like `(! q)` represented?
+
+Internally, `!` is just a constructor that builds a Not record, and I've tweaked the way it prints.  If the printing weren't tweaked, the output would look like this:
+
+```clojure
+=> (! :x)
+#rolling_stones.core.Not{:literal :x}
+```
+
+So as you can see, the contents of the Not are stored in a field called `:literal`, so if you need to extract the contents out of a Not, that's one way to do it (we'll see another way in a moment that doesn't require knowing the internal representation of Not).
+
+It is convenient to extend the metaphor of integer variables to symbolic variables, and we can think of true variables as "positive" and false variables as "negative".  So, for symbolic variables, Rolling Stones provides the predicates `positive?` and `negative?` to test symbolic variables, and `negate` which swaps positive with negative and vice versa.
+
+Examples:
+
+```clojure
+=> (sat/positive? :x)
+true
+=> (sat/negative? :x)
+false
+=> (sat/positive? (! :x))
+false
+=> (sat/negative? (! :x))
+true
+=> (sat/negate :x)
+(! :x)
+=> (sat/negate (! :x))
+:x
+
+; ! just builds a Not record, so doesn't have a notion of double negative
+=> (! (! :x))
+(! (! :x))
+
+; But negate does
+=> (sat/negate (sat/negate :x))
+:x
+```
+
+As demonstrated above, negate is another way to extract the contents of a Not, without needing to know the internal representation of a Not.
+
+With these tools in place, you can do exactly the same sorts of manipulations that we did with integer variable solutions:
+
+```clojure
+; Get all true variables
+=> (filter sat/positive? [:p (! :q) (! :r)])
+
+; Get all false variables
+=> (filter sat/negative? [:p (! :q) (! :r)])
+
+; Get all false variables, drop the minus sign
+=> (map sat/negate (filter sat/negative? [:p (! :q) (! :r)]))
+
+; Swap true and false variables
+=> (mapv sat/negate [:p (! :q) (! :r)])
+
+; Collect all the true variables into a set
+=> (def true-set (into {} (filter sat/positive?) [:p (! :q) (! :r)]))
+
+; Test if a specific variable is true
+=> (contains? true-set :p)
+true
+=> (contains? true-set :q)
+false
+```
+
+As in the integer case, a convenience function `true-symbolic-variables` is provided to build a set of true variables, since that is the most common need:
+
+```clojure
+(def true-set (true-symbolic-variables [:p (! :q) (! :r)]))
+```
+
+## API Summary
+
+* Integer Variables, Conjunctive Normal Form
+  + `solve`
+  + `solutions`
+* Symbolic Variables, Conjunctive Normal Form
+  + `solve-symbolic-cnf`
+  + `solutions-symbolic-cnf`
+* Symbolic Variables, any logic formula
+  + `solve-symbolic-formula`
+  + `solutions-symbolic-formula`
+* Manipulating integer solutions
+  + Use clojure.core's `pos?`, `neg?`, and `-`
+  + `true-integer-variables` builds a set of the true integer variables, i.e., the positive integers
+* Manipulating symbolic solutions
+  + Use rolling-stones.core's `positive?`, `negative?`, and `negate`
+  + `true-symbolic-variables` builds a set of the true symbolic variables, i.e., any Clojure data that isn't wrapped in a Not.
 
 ## Roadmap
 
 As far as my own personal needs go, this project is feature complete.  However, Sat4j has a ton of extra functionality that isn't exposed here, for example, it can solve MAXSAT, Pseudo-Boolean problems, and MUS problems, and there are a bunch of alternative solving algorithms as well as tools that can read formulas out of files in a variety of standardized formats.  I would welcome pull requests that expose more aspects of the underlying solver in a similarly Clojure-friendly way.
-
-When reading the source code and creating pull requests, please note that Rolling Stones uses the [better-cond library](https://github.com/Engelberg/better-cond) which permits :let clauses in the cond.
 
 ## License
 
@@ -124,3 +270,4 @@ Copyright © 2016 Mark Engelberg
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
+

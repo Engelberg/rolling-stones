@@ -349,3 +349,17 @@
         (filterv (complement temporary?) solution)))
     :else (recur [wffs])))
   
+; Tools for working with symbolic variables
+(def positive? (complement not?))
+(def negative? not?)
+(defn negate [x] (if (not? x) (:literal x) (NOT x)))
+
+(defn true-integer-variables 
+  "Returns a set of all the true variables from a collection of integer variables"
+  [coll]
+  (into {} (filter pos?) coll))
+
+(defn true-symbolic-variables
+  "Returns a set of all the true variables from a collection of symbolic variables"
+  [coll]
+  (into {} (remove not?) coll))
