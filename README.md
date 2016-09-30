@@ -93,8 +93,8 @@ For the purposes of our example, let's use keywords for our variables (although 
 But remember, you can use any Clojure data you want to denote variables. You don't need to restrict yourself to keywords.  As a somewhat crazy example, let's replace `:p` with `{:name "Bob"}`, `:q` with `[2 6]` and `:r` with `#{4}`.
 
 ```clojure
-=> (sat/solve-symbolic-formula [[{:name "Bob"}] [{:name "Bob"} [2 6]]
-                                [(! {:name "Bob"}) [2 6] (! #{4})]])
+=> (sat/solve-symbolic-cnf [[{:name "Bob"}] [{:name "Bob"} [2 6]]
+                            [(! {:name "Bob"}) [2 6] (! #{4})]])
 [[{:name "Bob"}] [{:name "Bob"} [2 6]] [(! {:name Bob}) [2 6] (! #{4})]]
 ```
 
@@ -271,7 +271,7 @@ As far as my own personal needs go, this project is feature complete.  However, 
 
 ## License
 
-Copyright © 2016 Mark Engelberg
+Copyright Â© 2016 Mark Engelberg
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
