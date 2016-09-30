@@ -3,6 +3,7 @@
             [clojure.spec :as s])
   (:import [org.sat4j.core VecInt]
            org.sat4j.minisat.SolverFactory
+           org.sat4j.minisat.core.SolverStats
            org.sat4j.tools.ModelIterator
            [org.sat4j.specs ContradictionException TimeoutException ISolver IProblem]))
 
@@ -53,6 +54,27 @@
     (.findModel solver)
     (catch TimeoutException e nil)))
 
+(defn- stats-map [^ISolver solver]
+  (let [^SolverStats stats (.getStats solver)]
+    {:starts (.starts stats),
+     :decisions (.decisions stats),
+     :propagations (.propagations stats),
+     :inspects (.inspects stats),
+     :shortcuts (.shortcuts stats),
+     :conflicts (.conflicts stats),
+     :learned-literals (.learnedliterals stats),
+     :learned-clauses (.learnedclauses stats),
+     :ignored-clauses (.ignoredclauses stats),
+     :learned-binary-clauses (.learnedbinaryclauses stats),
+     :learned-ternary-clauses (.learnedternaryclauses stats),
+     :root-simplifications (.rootSimplifications stats),
+     :reduced-literals (.reducedliterals stats),
+     :changed-reason (.changedreason stats),
+     :reduced-db (.reduceddb stats),
+     :update-lbd (.updateLBD stats),
+     :imported-units (.importedUnits stats)}))
+  
+
 (s/def ::constraint constraint?)
 (s/def ::numeric-clause (s/coll-of (s/and int? #(not= % 0))
                                    :into []))
@@ -69,8 +91,8 @@
     (when-let [solver (create-solver clauses)]
       (when timeout 
         (.setTimeoutMs solver timeout))
-      (when-let [solution (.findModel solver)]
-        (vec solution)))))
+      (when-let [solution (find-model solver)]
+        (with-meta (vec solution) (stats-map solver))))))
 
 (defn- find-next-model [^ISolver solver]
   (try
@@ -92,11 +114,11 @@
       :when-let [solver (create-solver clauses)]
       :let [iterator (ModelIterator. solver)
             _ (when timeout (.setTimeoutMs solver timeout))
-            solution-iterator (fn [sol]
+            solution-iterator (fn [_]
                                 (when-let [next-solution (find-next-model iterator)]
-                                  next-solution))]
-      :when-let [first-solution (find-next-model iterator)]
-      (map vec (take-while identity (iterate solution-iterator first-solution))))))          
+                                  (with-meta (vec next-solution) (stats-map solver))))]
+      :when-let [first-solution (solution-iterator nil)]
+      (take-while identity (iterate solution-iterator first-solution)))))          
 
 (defn- make-counter "Makes counter starting from n" [n] 
   (let [ctr (atom (dec n))]
@@ -141,7 +163,9 @@
   (fn [clause]
     (if (constraint? clause)
       (update clause :literals (partial mapv transform))
-      (mapv transform clause))))
+      (if-let [m (meta clause)]
+        (with-meta (mapv transform clause) m)
+        (mapv transform clause)))))
 
 (s/def ::symbolic-clause (s/coll-of ::s/any :into []))
 
@@ -160,9 +184,9 @@
             transformed-clauses (mapv (clause-transformer object->int) clauses)]
       :when-let [solver (create-solver transformed-clauses)]
       :let [_ (when timeout (.setTimeoutMs solver timeout))]
-      :when-let [solution (.findModel solver)]
+      :when-let [solution (find-model solver)]
       :let [untransformed-solution ((clause-transformer int->object) solution)] 
-      (vec untransformed-solution))))
+      (with-meta (vec untransformed-solution) (stats-map solver)))))
 
 (s/fdef solutions-symbolic-cnf
         :args (s/cat :clauses (s/coll-of (s/or :clause ::symbolic-clause
@@ -180,13 +204,12 @@
       :when-let [solver (create-solver transformed-clauses)]
       :let [iterator (ModelIterator. solver)
             _ (when timeout (.setTimeoutMs solver timeout)),
-            solution-iterator (fn [sol]
+            solution-iterator (fn [_]
                                 (when-let [next-solution (find-next-model iterator)]
-                                  next-solution))]
-      :when-let [first-solution (find-next-model iterator)]        
+                                  (with-meta (vec next-solution) (stats-map solver))))]
+      :when-let [first-solution (solution-iterator nil)]        
       (map (clause-transformer int->object) 
-           (map vec 
-                (take-while identity (iterate solution-iterator first-solution)))))))
+           (take-while identity (iterate solution-iterator first-solution))))))
 
 
 ;Tseitin encodings

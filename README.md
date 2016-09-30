@@ -39,7 +39,32 @@ We can solve this as follows:
 [1 -2 -3]
 ```
 
-This answer tells us that if variable 1 (p) is set to true and variables 2 and 3 (q and r) are set to false, the overall formula will be true.  We can get all the true combinations as follows:
+This answer tells us that if variable 1 (p) is set to true and variables 2 and 3 (q and r) are set to false, the overall formula will be true.
+A variety of statistics about the solving process are attached as metadata to the solution:
+
+```clojure
+=> (meta (sat/solve [[1] [1 2] [-1 2 -3]]))
+{:shortcuts 0,
+ :decisions 2,
+ :reduced-db 0,
+ :learned-ternary-clauses 0,
+ :root-simplifications 0,
+ :conflicts 0,
+ :update-lbd 0,
+ :reduced-literals 0,
+ :ignored-clauses 0,
+ :imported-units 0,
+ :starts 1,
+ :changed-reason 0,
+ :learned-binary-clauses 0,
+ :propagations 3,
+ :inspects 1,
+ :learned-clauses 0,
+ :learned-literals 0}
+```
+
+
+We can get all the true combinations as follows:
 
 ```clojure
 => (sat/solutions [[1] [1 2] [-1 2 -3]])
