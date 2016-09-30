@@ -164,15 +164,15 @@
       :let [untransformed-solution ((clause-transformer int->object) solution)] 
       (vec untransformed-solution))))
 
-(s/fdef solutions-general
+(s/fdef solutions-symbolic-cnf
         :args (s/cat :clauses (s/coll-of (s/or :clause ::symbolic-clause
                                                :constraint ::constraint) 
                                          :into ()))
                      :timeout (s/? pos-int?)
         :ret (s/* ::symbolic-clause))
 
-(defn solutions-general 
-  ([clauses] (solutions-general clauses nil))
+(defn solutions-symbolic-cnf 
+  ([clauses] (solutions-symbolic-cnf clauses nil))
   ([clauses timeout]
     (b/cond
       :let [[object->int int->object] (build-transforms clauses)
@@ -329,7 +329,7 @@
       (filterv (complement temporary?) solution))  
       :else (recur [wffs] timeout))))
 
-(s/fdef solutions-formula
+(s/fdef solutions-symbolic-formula
         :args (s/cat :formula-or-formulas
                      (s/alt :single-formula ::symbolic-formula
                             :multiple-formulas (s/coll-of (s/or :formula ::symbolic-formula
@@ -338,13 +338,13 @@
                      :timeout (s/? pos-int?))
         :ret (s/* ::symbolic-clause))
 
-(defn solutions-formula [wffs]
+(defn solutions-symbolic-formula [wffs]
   (b/cond
     (sequential? wffs)
     (let [{constraints true, wffs false} (group-by constraint? wffs)
           cnf (into [] (comp (map formula->cnf) cat) wffs)
           clauses (into cnf constraints),
-          solutions (solutions-general clauses)]
+          solutions (solutions-symbolic-cnf clauses)]
       (for [solution solutions]
         (filterv (complement temporary?) solution)))
     :else (recur [wffs])))
