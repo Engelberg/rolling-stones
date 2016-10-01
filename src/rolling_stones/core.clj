@@ -1,7 +1,7 @@
 (ns rolling-stones.core
   (:require [better-cond.core :as b]
             [clojure.spec :as s]
-            [clojure.pprint]
+            [clojure.pprint])
   (:import [org.sat4j.core VecInt]
            org.sat4j.minisat.SolverFactory
            org.sat4j.minisat.core.SolverStats
@@ -168,7 +168,7 @@
         (with-meta (mapv transform clause) m)
         (mapv transform clause)))))
 
-(s/def ::symbolic-clause (s/coll-of ::s/any :into []))
+(s/def ::symbolic-clause (s/coll-of any? :into []))
 
 (s/fdef solve-symbolic-cnf
         :args (s/cat :clauses (s/coll-of (s/or :clause ::symbolic-clause
