@@ -289,6 +289,8 @@ false
 * Manipulating symbolic solutions
   + Use rolling-stones.core's `positive?`, `negative?`, and `negate`
   + `true-symbolic-variables` builds a set of the true symbolic variables, i.e., any Clojure data that isn't a Not.
+* Retrieving statistics about the solving process
+  + Call clojure.core's `meta` on any solution
 
 ## Roadmap
 

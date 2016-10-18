@@ -191,12 +191,12 @@
 
 (s/fdef solutions-symbolic-cnf
         :args (s/cat :clauses (s/coll-of (s/or :clause ::symbolic-clause
-                                               :constraint ::constraint) 
+                                               :constraint ::constraint)
                                          :into ()))
               :timeout (s/? pos-int?)
         :ret (s/* ::symbolic-clause))
 
-(defn solutions-symbolic-cnf 
+(defn solutions-symbolic-cnf
   ([clauses] (solutions-symbolic-cnf clauses nil))
   ([clauses timeout]
    (b/cond
@@ -362,23 +362,25 @@
                      :timeout (s/? pos-int?))
         :ret (s/* ::symbolic-clause))
 
-(defn solutions-symbolic-formula [wffs]
-  (b/cond
-    (sequential? wffs)
-    (let [{constraints true, wffs false} (group-by constraint? wffs)
-          cnf (into [] (comp (map formula->cnf) cat) wffs)
-          clauses (into cnf constraints),
-          solutions (solutions-symbolic-cnf clauses)]
-      (for [solution solutions]
-        (filterv (complement temporary?) solution)))
-    :else (recur [wffs])))
-  
+(defn solutions-symbolic-formula
+  ([wffs] (solutions-symbolic-formula wffs nil))
+  ([wffs timeout]
+   (b/cond
+     (sequential? wffs)
+     (let [{constraints true, wffs false} (group-by constraint? wffs)
+           cnf       (into [] (comp (map formula->cnf) cat) wffs)
+           clauses   (into cnf constraints),
+           solutions (solutions-symbolic-cnf clauses timeout)]
+       (for [solution solutions]
+         (with-meta (filterv (complement temporary?) solution) (meta solution))))
+     :else (recur [wffs] timeout))))
+
 ; Tools for working with symbolic variables
 (def positive? (complement not?))
 (def negative? not?)
 (defn negate [x] (if (not? x) (:literal x) (NOT x)))
 
-(defn true-integer-variables 
+(defn true-integer-variables
   "Returns a set of all the true variables from a collection of integer variables"
   [coll]
   (into {} (filter pos?) coll))
