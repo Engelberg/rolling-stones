@@ -383,9 +383,9 @@
 (defn true-integer-variables
   "Returns a set of all the true variables from a collection of integer variables"
   [coll]
-  (into {} (filter pos?) coll))
+  (into #{} (filter pos?) coll))
 
 (defn true-symbolic-variables
   "Returns a set of all the true variables from a collection of symbolic variables"
   [coll]
-  (into {} (remove not?) coll))
+  (into #{} (remove not?) coll))
