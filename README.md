@@ -15,7 +15,7 @@ Rolling Stones currently requires Clojure 1.9 alpha 9 or higher due to a depende
 ```
 [rolling-stones "1.0.0-SNAPSHOT"]
 
-(require '[rolling-stones.core :as sat :refer [!]])
+(require '[rolling-stones.core :as sat :refer [! at-least at-most exactly]])
 ```
 
 ### Conjunctive Normal Form
@@ -132,7 +132,7 @@ If you don't have your logical formula in conjunctive normal form, you can build
 The functions `solve-symbolic-formula` and `solutions-symbolic-formula` can either take a single formula:
 
 ```clojure
-(require '[rolling-stones.core :as sat :refer [! NOT AND OR XOR IFF IMP NOR NAND]])
+(require '[rolling-stones.core :as sat :refer [! NOT AND OR XOR IFF IMP NOR NAND at-least at-most exactly]])
 
 => (sat/solve-symbolic-formula (XOR (AND :p :q (! :r)) (IFF :p (IMP :q :r))))
 [:q (! :p) (! :r)]
