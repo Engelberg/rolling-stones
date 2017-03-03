@@ -345,13 +345,12 @@
   ([wffs] (solve-symbolic-formula wffs nil))
   ([wffs timeout]
    (b/cond
-     (sequential? wffs)
-     (let [{constraints true, wffs false} (group-by constraint? wffs)
+     (not (sequential? wffs)) (recur [wffs] timeout)
+     :let [{constraints true, wffs false} (group-by constraint? wffs)
            cnf (into [] (comp (map formula->cnf) cat) wffs)
-           clauses (into cnf constraints),
-           solution (solve-symbolic-cnf clauses timeout)]
-      (filterv (complement temporary?) solution))  
-     :else (recur [wffs] timeout))))
+           clauses (into cnf constraints)]
+     :when-let [solution (solve-symbolic-cnf clauses timeout)]
+     (filterv (complement temporary?) solution))))
 
 (s/fdef solutions-symbolic-formula
         :args (s/cat :formula-or-formulas
@@ -366,14 +365,13 @@
   ([wffs] (solutions-symbolic-formula wffs nil))
   ([wffs timeout]
    (b/cond
-     (sequential? wffs)
-     (let [{constraints true, wffs false} (group-by constraint? wffs)
+     (not (sequential? wffs)) (recur [wffs] timeout)
+     :let [{constraints true, wffs false} (group-by constraint? wffs)
            cnf       (into [] (comp (map formula->cnf) cat) wffs)
-           clauses   (into cnf constraints),
-           solutions (solutions-symbolic-cnf clauses timeout)]
-       (for [solution solutions]
-         (with-meta (filterv (complement temporary?) solution) (meta solution))))
-     :else (recur [wffs] timeout))))
+           clauses   (into cnf constraints)]
+     :when-let [solutions (solutions-symbolic-cnf clauses timeout)]
+     (for [solution solutions]
+       (with-meta (filterv (complement temporary?) solution) (meta solution))))))
 
 ; Tools for working with symbolic variables
 (def positive? (complement not?))
