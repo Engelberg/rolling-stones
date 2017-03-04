@@ -430,10 +430,12 @@
   "Returns a set of all the true variables from a collection of integer variables.
   Returns nil if passed nil."
   [coll]
-  (into #{} (filter pos?) coll))
+  (when coll
+    (into #{} (filter pos?) coll)))
 
 (defn true-symbolic-variables
   "Returns a set of all the true variables from a collection of symbolic variables.
   Returns nil if passed nil."
   [coll]
-  (into #{} (remove not?) coll))
+  (when coll
+    (into #{} (remove not?) coll)))
