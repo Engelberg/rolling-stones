@@ -71,7 +71,7 @@ We can get all the true combinations as follows:
 ([1 -2 -3] [1 2 -3] [1 2 3])
 ```
 
-Both functions take an optional second argument, the timeout in milliseconds.
+Both functions take an optional second argument, the timeout in milliseconds.  If you need to know when and whether a timeout has occurred, you can pass in an optional third argument, an atom which will be set to true upon timeout.
 
 Unsatisfiable formulas return nil:
 

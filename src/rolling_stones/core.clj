@@ -50,10 +50,13 @@
       solver
       (catch ContradictionException e nil))))
 
-(defn- find-model [^ISolver solver]
+(defn- set-timeout-atom! [timeout-atom]
+  (when timeout-atom (do (reset! timeout-atom true) nil)))
+
+(defn- find-model [^ISolver solver timeout-atom]
   (try
     (.findModel solver)
-    (catch TimeoutException e nil)))
+    (catch TimeoutException e (set-timeout-atom! timeout-atom))))
 
 (defn- stats-map [^ISolver solver]
   (let [^SolverStats stats (.getStats solver)]
@@ -88,21 +91,22 @@
 
 (defn solve
   "Takes a formula in integer CNF form, i.e., vector of constraints and vectors of non-zero ints
-  and optional timeout in millis.
+  and optional timeout in millis and optional atom to set to true if timeout occurs.
   Returns solution or nil if no solution exists.  Stats attached as metadata."
-  ([clauses] (solve clauses nil))
-  ([clauses timeout]
+  ([clauses] (solve clauses nil nil))
+  ([clauses timeout] (solve clauses timeout nil))
+  ([clauses timeout timeout-atom]
    (when-let [solver (create-solver clauses)]
      (when timeout
        (.setTimeoutMs solver timeout))
-     (when-let [solution (find-model solver)]
+     (when-let [solution (find-model solver timeout-atom)]
        (with-meta (vec solution) (stats-map solver))))))
 
-(defn- find-next-model [^ISolver solver]
+(defn- find-next-model [^ISolver solver timeout-atom]
   (try
     (when (.isSatisfiable solver)
       (.model solver))
-    (catch TimeoutException e nil)))
+    (catch TimeoutException e (set-timeout-atom! timeout-atom))))
 
 (s/fdef solutions
         :args (s/cat :clauses (s/coll-of (s/or :constraint ::constraint
@@ -113,16 +117,17 @@
 
 (defn solutions
   "Takes a formula in integer CNF form, i.e., vector of constraints and vectors of non-zero ints
-  and optional timeout in millis.
+  and optional timeout in millis and optional atom to set to true if timeout occurs.
   Returns lazy sequence of all solutions.  Stats attached as metadata to each solution."
-  ([clauses] (solutions clauses nil))
-  ([clauses timeout]
+  ([clauses] (solutions clauses nil nil))
+  ([clauses timeout] (solutions clauses timeout nil))
+  ([clauses timeout timeout-atom]
    (b/cond
      :when-let [solver (create-solver clauses)]
      :let [iterator (ModelIterator. solver)
            _ (when timeout (.setTimeoutMs solver timeout))
            solution-iterator (fn [_]
-                               (when-let [next-solution (find-next-model iterator)]
+                               (when-let [next-solution (find-next-model iterator timeout-atom)]
                                  (with-meta (vec next-solution) (stats-map solver))))]
      :when-let [first-solution (solution-iterator nil)]
      (take-while identity (iterate solution-iterator first-solution)))))
@@ -186,16 +191,17 @@
 (defn solve-symbolic-cnf
   "Takes a formula in symbolic CNF form, i.e., vector of constraints and vectors of variables and
   ! of variables, where variables are represented by arbitrary Clojure data.
-  Also takes optional timeout in millis.
+  Also takes optional timeout in millis and optional atom to set to true if timeout occurs.
   Returns solution or nil if no solution exists.  Stats attached as metadata."
-  ([clauses] (solve-symbolic-cnf clauses nil))
-  ([clauses timeout]
+  ([clauses] (solve-symbolic-cnf clauses nil nil))
+  ([clauses timeout] (solve-symbolic-cnf clauses timeout nil))
+  ([clauses timeout timeout-atom]
    (b/cond
      :let [[object->int int->object] (build-transforms clauses)
            transformed-clauses (mapv (clause-transformer object->int) clauses)]
      :when-let [solver (create-solver transformed-clauses)]
      :let [_ (when timeout (.setTimeoutMs solver timeout))]
-     :when-let [solution (find-model solver)]
+     :when-let [solution (find-model solver timeout-atom)]
      :let [untransformed-solution ((clause-transformer int->object) solution)]
      (with-meta (vec untransformed-solution) (stats-map solver)))))
 
@@ -209,10 +215,11 @@
 (defn solutions-symbolic-cnf
   "Takes a formula in symbolic CNF form, i.e., vector of constraints and vectors of variables and
   ! of variables, where variables are represented by arbitrary Clojure data.
-  Also takes optional timeout in millis.
+  Also takes optional timeout in millis and optional atom to set to true if timeout occurs.
   Returns lazy sequence of solutions.  Stats attached as metadata to each solution."
-  ([clauses] (solutions-symbolic-cnf clauses nil))
-  ([clauses timeout]
+  ([clauses] (solutions-symbolic-cnf clauses nil nil))
+  ([clauses timeout] (solutions-symbolic-cnf clauses timeout nil))
+  ([clauses timeout timeout-atom]
    (b/cond
      :let [[object->int int->object] (build-transforms clauses)
            transformed-clauses (mapv (clause-transformer object->int) clauses)]
@@ -220,7 +227,7 @@
      :let [iterator (ModelIterator. solver)
            _ (when timeout (.setTimeoutMs solver timeout)),
            solution-iterator (fn [_]
-                               (when-let [next-solution (find-next-model iterator)]
+                               (when-let [next-solution (find-next-model iterator timeout-atom)]
                                  (with-meta (vec next-solution) (stats-map solver))))]
      :when-let [first-solution (solution-iterator nil)]
      (map (clause-transformer int->object)
@@ -373,16 +380,17 @@
   "Takes a formula in symbolic form, i.e., vector of constraints and formulas, where formulas
   are built with formula constructors such as AND, OR, XOR, IFF, NAND, NOR, IMP, NOT,
   and formula variables are represented by arbitrary Clojure data.
-  Also takes optional timeout in millis.
+  Also takes optional timeout in millis and optional atom to set to true if timeout occurs.
   Returns solution or nil if no solution exists.  Stats attached as metadata."
-  ([wffs] (solve-symbolic-formula wffs nil))
-  ([wffs timeout]
+  ([wffs] (solve-symbolic-formula wffs nil nil))
+  ([wffs timeout] (solve-symbolic-formula wffs timeout nil))
+  ([wffs timeout timeout-atom]
    (b/cond
-     (not (sequential? wffs)) (recur [wffs] timeout)
+     (not (sequential? wffs)) (recur [wffs] timeout timeout-atom)
      :let [{constraints true, wffs false} (group-by constraint? wffs)
            cnf       (into [] (comp (map formula->cnf) cat) wffs)
            clauses   (into cnf (mapcat encode-constraint) constraints)]
-     :when-let [solution (solve-symbolic-cnf clauses timeout)]
+     :when-let [solution (solve-symbolic-cnf clauses timeout timeout-atom)]
      (filterv (complement temporary?) solution))))
 
 (s/fdef solutions-symbolic-formula
@@ -398,16 +406,17 @@
   "Takes a formula in symbolic form, i.e., vector of constraints and formulas, where formulas
   are built with formula constructors such as AND, OR, XOR, IFF, NAND, NOR, IMP, NOT,
   and formula variables are represented by arbitrary Clojure data.
-  Also takes optional timeout in millis.
+  Also takes optional timeout in millis and optional atom to set to true if timeout occurs.
   Returns lazy sequence of all solutions.  Stats attached as metadata."
-  ([wffs] (solutions-symbolic-formula wffs nil))
-  ([wffs timeout]
+  ([wffs] (solutions-symbolic-formula wffs nil nil))
+  ([wffs timeout] (solutions-symbolic-formula wffs timeout nil))
+  ([wffs timeout timeout-atom]
    (b/cond
-     (not (sequential? wffs)) (recur [wffs] timeout)
+     (not (sequential? wffs)) (recur [wffs] timeout timeout-atom)
      :let [{constraints true, wffs false} (group-by constraint? wffs)
            cnf       (into [] (comp (map formula->cnf) cat) wffs)
            clauses   (into cnf (mapcat encode-constraint) constraints)]
-     :when-let [solutions (solutions-symbolic-cnf clauses timeout)]
+     :when-let [solutions (solutions-symbolic-cnf clauses timeout timeout-atom)]
      (for [solution solutions]
        (with-meta (filterv (complement temporary?) solution) (meta solution))))))
 
