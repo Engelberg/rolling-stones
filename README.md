@@ -73,6 +73,8 @@ We can get all the true combinations as follows:
 
 Both functions take an optional second argument, the timeout in milliseconds.  If you need to know when and whether a timeout has occurred, you can pass in an optional third argument, an atom which will be set to true upon timeout.
 
+Keep in mind that `solutions` produces a lazy sequence, so if you specify a timeout, you need to do something to force the evaluation of the lazy sequence before the timeout occurs.
+
 Unsatisfiable formulas return nil:
 
 ```clojure
