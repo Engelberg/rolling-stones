@@ -280,6 +280,7 @@
 (defprotocol CNF
   (encode-cnf [this] "Returns variable and clauses"))
 
+(declare negate)
 (extend-protocol CNF
   Object
   (encode-cnf [this] [this []])
