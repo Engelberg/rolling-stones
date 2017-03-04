@@ -10,7 +10,7 @@ Satisfiability (aka SAT) was the first computer science problem to be proven NP-
 
 ## Usage
 
-Rolling Stones currently requires Clojure 1.9 alpha 9 or higher due to a dependency on the new spec library.  I may eventually move the specs to a separate namespace to make this compatible with older versions of Clojure.
+Rolling Stones currently requires Clojure 1.9 alpha 14 or higher due to a dependency on the new spec library.  This library will remain in alpha as long as Clojure 1.9 is in alpha.  I will put out an official, non-snapshot release of this library when Clojure 1.9 is released.
 
 ```
 [rolling-stones "1.0.0-SNAPSHOT"]
@@ -291,6 +291,7 @@ false
   + `true-symbolic-variables` builds a set of the true symbolic variables, i.e., any Clojure data that isn't a Not.
 * Retrieving statistics about the solving process
   + Call clojure.core's `meta` on any solution
+* Return value of nil indicates no solution
 
 ## Roadmap
 

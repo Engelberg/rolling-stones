@@ -86,7 +86,10 @@
                      :timeout (s/? pos-int?))
         :ret (s/nilable ::numeric-clause))
 
-(defn solve 
+(defn solve
+  "Takes a formula in integer CNF form, i.e., vector of constraints and vectors of non-zero ints
+  and optional timeout in millis.
+  Returns solution or nil if no solution exists.  Stats attached as metadata."
   ([clauses] (solve clauses nil))
   ([clauses timeout]
    (when-let [solver (create-solver clauses)]
@@ -108,7 +111,10 @@
                      :timeout (s/? pos-int?))
         :ret (s/* ::numeric-clause))
 
-(defn solutions 
+(defn solutions
+  "Takes a formula in integer CNF form, i.e., vector of constraints and vectors of non-zero ints
+  and optional timeout in millis.
+  Returns lazy sequence of all solutions.  Stats attached as metadata to each solution."
   ([clauses] (solutions clauses nil))
   ([clauses timeout]
    (b/cond
@@ -177,7 +183,11 @@
               :timeout (s/? pos-int?)
         :ret (s/nilable ::symbolic-clause))
 
-(defn solve-symbolic-cnf 
+(defn solve-symbolic-cnf
+  "Takes a formula in symbolic CNF form, i.e., vector of constraints and vectors of variables and
+  ! of variables, where variables are represented by arbitrary Clojure data.
+  Also takes optional timeout in millis.
+  Returns solution or nil if no solution exists.  Stats attached as metadata."
   ([clauses] (solve-symbolic-cnf clauses nil))
   ([clauses timeout]
    (b/cond
@@ -197,6 +207,10 @@
         :ret (s/* ::symbolic-clause))
 
 (defn solutions-symbolic-cnf
+  "Takes a formula in symbolic CNF form, i.e., vector of constraints and vectors of variables and
+  ! of variables, where variables are represented by arbitrary Clojure data.
+  Also takes optional timeout in millis.
+  Returns lazy sequence of solutions.  Stats attached as metadata to each solution."
   ([clauses] (solutions-symbolic-cnf clauses nil))
   ([clauses timeout]
    (b/cond
@@ -264,10 +278,12 @@
   (encode-cnf [this] [this []])
   Not
   (encode-cnf [this]
-    (let [literal (:literal this),
-          [v clauses] (encode-cnf literal)
-          not-v (gensym "temp")]
-      [not-v (into clauses [[(! v) (! not-v)]
+    (b/cond
+      :let [literal (:literal this)]
+      (not (formula? literal)) [this []]
+      :let [[v clauses] (encode-cnf literal)
+            not-v (gensym "temp")]
+      [not-v (into clauses [[(negate v) (negate not-v)]
                             [v not-v]])]))
   And
   (encode-cnf [this]
@@ -277,8 +293,8 @@
           clauses (apply concat (map second vs-clauses)),
           and-v (gensym "temp")]
       [and-v (into clauses (cons
-                             (vec (cons and-v (map ! vs)))
-                             (for [v vs] [(! and-v) v])))]))
+                             (vec (cons and-v (map negate vs)))
+                             (for [v vs] [(negate and-v) v])))]))
   Or
   (encode-cnf [this]
     (let [literals (:literals this),
@@ -287,8 +303,8 @@
           clauses (apply concat (map second vs-clauses)),
           or-v (gensym "temp")]
       [or-v (into clauses (cons
-                            (vec (cons (! or-v) vs))
-                            (for [v vs] [or-v (! v)])))]))  
+                            (vec (cons (negate or-v) vs))
+                            (for [v vs] [or-v (negate v)])))]))
   Xor
   (encode-cnf [this]
     (let [literal1 (:literal1 this),
@@ -297,10 +313,10 @@
           [v2 clauses2] (encode-cnf literal2)
           xor-v (gensym "temp")]
       [xor-v (into (concat clauses1 clauses2)
-                   [[(! xor-v) (! v1) (! v2)]
-                    [xor-v v1 (! v2)]
-                    [xor-v (! v1) v2]
-                    [(! xor-v) v1 v2]])]))  
+                   [[(negate xor-v) (negate v1) (negate v2)]
+                    [xor-v v1 (negate v2)]
+                    [xor-v (negate v1) v2]
+                    [(negate xor-v) v1 v2]])]))
   Imp
   (encode-cnf [this]
     (let [literal1 (:literal1 this),
@@ -309,9 +325,9 @@
           [v2 clauses2] (encode-cnf literal2)
           imp-v (gensym "temp")]
       [imp-v (into (concat clauses1 clauses2)
-                   [[(! imp-v) (! v1) v2]
+                   [[(negate imp-v) (negate v1) v2]
                     [imp-v v1]
-                    [imp-v (! v2)]])]))
+                    [imp-v (negate v2)]])]))
   
   Iff
   (encode-cnf [this]
@@ -321,14 +337,26 @@
           [v2 clauses2] (encode-cnf literal2)
           iff-v (gensym "temp")]
       [iff-v (into (concat clauses1 clauses2)
-                   [[(! iff-v) v1 (! v2)]
-                    [iff-v (! v1) (! v2)]
+                   [[(negate iff-v) v1 (negate v2)]
+                    [iff-v (negate v1) (negate v2)]
                     [iff-v v1 v2]
-                    [(! iff-v) (! v1) v2]])])))
+                    [(negate iff-v) (negate v1) v2]])])))
   
 (defn formula->cnf [wff]
   (let [[v clauses] (encode-cnf wff)]
     (conj clauses [v])))
+
+(defn- literal? "Is it a plain variable or a NOT of a plain variable?" [wff]
+  (or (not (formula? wff)) (and (not? wff) (not (formula? (:literal wff))))))
+
+(defn encode-constraint "Returns (cons new-constraint new-clauses)" [constraint]
+  (loop [literals (seq (:literals constraint)), new-literals [], new-clauses []]
+    (b/cond
+      (not literals) (cons (assoc constraint :literals new-literals) new-clauses)
+      :let [literal (first literals)]
+      (literal? literal) (recur (next literals) (conj new-literals literal) new-clauses)
+      :let [[new-literal clauses] (encode-cnf literal)]
+      (recur (next literals) (conj new-literals new-literal) (into new-clauses clauses)))))
 
 (s/def ::symbolic-formula formula?)
 
@@ -341,14 +369,19 @@
                      :timeout (s/? pos-int?))
         :ret (s/nilable ::symbolic-clause))
 
-(defn solve-symbolic-formula 
+(defn solve-symbolic-formula
+  "Takes a formula in symbolic form, i.e., vector of constraints and formulas, where formulas
+  are built with formula constructors such as AND, OR, XOR, IFF, NAND, NOR, IMP, NOT,
+  and formula variables are represented by arbitrary Clojure data.
+  Also takes optional timeout in millis.
+  Returns solution or nil if no solution exists.  Stats attached as metadata."
   ([wffs] (solve-symbolic-formula wffs nil))
   ([wffs timeout]
    (b/cond
      (not (sequential? wffs)) (recur [wffs] timeout)
      :let [{constraints true, wffs false} (group-by constraint? wffs)
-           cnf (into [] (comp (map formula->cnf) cat) wffs)
-           clauses (into cnf constraints)]
+           cnf       (into [] (comp (map formula->cnf) cat) wffs)
+           clauses   (into cnf (mapcat encode-constraint) constraints)]
      :when-let [solution (solve-symbolic-cnf clauses timeout)]
      (filterv (complement temporary?) solution))))
 
@@ -362,13 +395,18 @@
         :ret (s/* ::symbolic-clause))
 
 (defn solutions-symbolic-formula
+  "Takes a formula in symbolic form, i.e., vector of constraints and formulas, where formulas
+  are built with formula constructors such as AND, OR, XOR, IFF, NAND, NOR, IMP, NOT,
+  and formula variables are represented by arbitrary Clojure data.
+  Also takes optional timeout in millis.
+  Returns lazy sequence of all solutions.  Stats attached as metadata."
   ([wffs] (solutions-symbolic-formula wffs nil))
   ([wffs timeout]
    (b/cond
      (not (sequential? wffs)) (recur [wffs] timeout)
      :let [{constraints true, wffs false} (group-by constraint? wffs)
            cnf       (into [] (comp (map formula->cnf) cat) wffs)
-           clauses   (into cnf constraints)]
+           clauses   (into cnf (mapcat encode-constraint) constraints)]
      :when-let [solutions (solutions-symbolic-cnf clauses timeout)]
      (for [solution solutions]
        (with-meta (filterv (complement temporary?) solution) (meta solution))))))
@@ -379,11 +417,13 @@
 (defn negate [x] (if (not? x) (:literal x) (NOT x)))
 
 (defn true-integer-variables
-  "Returns a set of all the true variables from a collection of integer variables"
+  "Returns a set of all the true variables from a collection of integer variables.
+  Returns nil if passed nil."
   [coll]
   (into #{} (filter pos?) coll))
 
 (defn true-symbolic-variables
-  "Returns a set of all the true variables from a collection of symbolic variables"
+  "Returns a set of all the true variables from a collection of symbolic variables.
+  Returns nil if passed nil."
   [coll]
   (into #{} (remove not?) coll))
