@@ -1,6 +1,6 @@
 (ns rolling-stones.core
   (:require [better-cond.core :as b]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [clojure.pprint])
   (:import [org.sat4j.core VecInt]
            org.sat4j.minisat.SolverFactory
