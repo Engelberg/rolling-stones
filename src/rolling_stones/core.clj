@@ -144,7 +144,7 @@
 (defmethod clojure.core/print-method Not [x writer]
   (binding [*out* writer]
     (print "(! ")
-    (print (:literal x))
+    (pr (:literal x))
     (print ")")))
 
 (. clojure.pprint/simple-dispatch addMethod Not #(clojure.core/print-method % *out*))
