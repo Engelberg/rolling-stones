@@ -10,10 +10,10 @@ Satisfiability (aka SAT) was the first computer science problem to be proven NP-
 
 ## Usage
 
-Rolling Stones currently requires Clojure 1.9 alpha 14 or higher due to a dependency on the new spec library.  This library will remain in alpha as long as Clojure 1.9 is in alpha.  I will put out an official, non-snapshot release of this library when Clojure 1.9 is released.
+Rolling Stones currently requires Clojure 1.9 alpha 14 or higher.
 
 ```
-[rolling-stones "1.0.0-SNAPSHOT"]
+[rolling-stones "1.0.0"]
 
 (require '[rolling-stones.core :as sat :refer [! at-least at-most exactly]])
 ```
@@ -122,7 +122,7 @@ But remember, you can use any Clojure data you want to denote variables. You don
 ```clojure
 => (sat/solve-symbolic-cnf [[{:name "Bob"}] [{:name "Bob"} [2 6]]
                             [(! {:name "Bob"}) [2 6] (! #{4})]])
-[[{:name "Bob"}] [{:name "Bob"} [2 6]] [(! {:name Bob}) [2 6] (! #{4})]]
+[[{:name "Bob"}] [{:name "Bob"} [2 6]] [(! {:name "Bob"}) [2 6] (! #{4})]]
 ```
 
 Behind the scenes, Rolling Stones is simply translating each distinct Clojure value to a distinct integer (negative integer if wrapped in a `!`) and passing it to the integer variable solver discussed above, then translating the output back into the Clojure values you used.
