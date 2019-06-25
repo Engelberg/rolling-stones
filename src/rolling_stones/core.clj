@@ -240,7 +240,7 @@
 (defn AND [& literals]
   (->And literals))
 (defn and? [x]
-  (instance? AND x))
+  (instance? And x))
 
 (defrecord Or [literals])
 (defn OR [& literals]
