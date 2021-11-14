@@ -60,23 +60,23 @@
 
 (defn- stats-map [^ISolver solver]
   (let [^SolverStats stats (.getStats solver)]
-    {:starts (.starts stats),
-     :decisions (.decisions stats),
-     :propagations (.propagations stats),
-     :inspects (.inspects stats),
-     :shortcuts (.shortcuts stats),
-     :conflicts (.conflicts stats),
-     :learned-literals (.learnedliterals stats),
-     :learned-clauses (.learnedclauses stats),
-     :ignored-clauses (.ignoredclauses stats),
-     :learned-binary-clauses (.learnedbinaryclauses stats),
-     :learned-ternary-clauses (.learnedternaryclauses stats),
-     :root-simplifications (.rootSimplifications stats),
-     :reduced-literals (.reducedliterals stats),
-     :changed-reason (.changedreason stats),
-     :reduced-db (.reduceddb stats),
-     :update-lbd (.updateLBD stats),
-     :imported-units (.importedUnits stats)}))
+    {:starts (.getStarts stats),
+     :decisions (.getDecisions stats),
+     :propagations (.getPropagations stats),
+     :inspects (.getInspects stats),
+     :shortcuts (.getShortcuts stats),
+     :conflicts (.getConflicts stats),
+     :learned-literals (.getLearnedliterals stats),
+     :learned-clauses (.getLearnedclauses stats),
+     :ignored-clauses (.getIgnoredclauses stats),
+     :learned-binary-clauses (.getLearnedbinaryclauses stats),
+     :learned-ternary-clauses (.getLearnedternaryclauses stats),
+     :root-simplifications (.getRootSimplifications stats),
+     :reduced-literals (.getReducedliterals stats),
+     :changed-reason (.getChangedreason stats),
+     :reduced-db (.getReduceddb stats),
+     :update-lbd (.getUpdateLBD stats),
+     :imported-units (.getImportedUnits stats)}))
   
 
 (s/def ::constraint constraint?)
@@ -97,8 +97,9 @@
   ([clauses timeout] (solve clauses timeout nil))
   ([clauses timeout timeout-atom]
    (when-let [solver (create-solver clauses)]
-     (when timeout
-       (.setTimeoutMs solver timeout))
+     (if timeout
+       (.setTimeoutMs solver timeout)
+       (.setTimeoutOnConflicts solver Integer/MAX_VALUE))
      (when-let [solution (find-model solver timeout-atom)]
        (with-meta (vec solution) (stats-map solver))))))
 
@@ -125,7 +126,9 @@
    (b/cond
      :when-let [solver (create-solver clauses)]
      :let [iterator (ModelIterator. solver)
-           _ (when timeout (.setTimeoutMs solver timeout))
+           _ (if timeout
+               (.setTimeoutMs solver timeout)
+               (.setTimeoutOnConflicts solver Integer/MAX_VALUE))
            solution-iterator (fn [_]
                                (when-let [next-solution (find-next-model iterator timeout-atom)]
                                  (with-meta (vec next-solution) (stats-map solver))))]
@@ -200,7 +203,9 @@
      :let [[object->int int->object] (build-transforms clauses)
            transformed-clauses (mapv (clause-transformer object->int) clauses)]
      :when-let [solver (create-solver transformed-clauses)]
-     :let [_ (when timeout (.setTimeoutMs solver timeout))]
+     :let [_ (if timeout
+               (.setTimeoutMs solver timeout)
+               (.setTimeoutOnConflicts solver Integer/MAX_VALUE))]
      :when-let [solution (find-model solver timeout-atom)]
      :let [untransformed-solution ((clause-transformer int->object) solution)]
      (with-meta (vec untransformed-solution) (stats-map solver)))))
@@ -225,7 +230,9 @@
            transformed-clauses (mapv (clause-transformer object->int) clauses)]
      :when-let [solver (create-solver transformed-clauses)]
      :let [iterator (ModelIterator. solver)
-           _ (when timeout (.setTimeoutMs solver timeout)),
+           _ (if timeout
+               (.setTimeoutMs solver timeout)
+               (.setTimeoutOnConflicts solver Integer/MAX_VALUE)),
            solution-iterator (fn [_]
                                (when-let [next-solution (find-next-model iterator timeout-atom)]
                                  (with-meta (vec next-solution) (stats-map solver))))]

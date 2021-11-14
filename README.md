@@ -13,7 +13,7 @@ Satisfiability (aka SAT) was the first computer science problem to be proven NP-
 Rolling Stones currently requires Clojure 1.9 alpha 14 or higher.
 
 ```
-[rolling-stones "1.0.1"]
+[rolling-stones "1.0.2"]
 
 (require '[rolling-stones.core :as sat :refer [! at-least at-most exactly]])
 ```
@@ -74,6 +74,8 @@ We can get all the true combinations as follows:
 Both functions take an optional second argument, the timeout in milliseconds.  If you need to know when and whether a timeout has occurred, you can pass in an optional third argument, an atom which will be set to true upon timeout.
 
 Keep in mind that `solutions` produces a lazy sequence, so if you specify a timeout, you need to do something to force the evaluation of the lazy sequence before the timeout occurs.
+
+Another point to be aware of relating to timeouts: due to the architecture of SAT4J, if you specify a timeout, the solver is not eligible for garbage collection until the timeout time has elapsed, because SAT4J creates a separate timer process that holds a reference to the solver. This could be an issue if you solve a lot of small problems rapidly, each with a long timeout. 
 
 Unsatisfiable formulas return nil:
 
