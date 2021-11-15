@@ -8,6 +8,8 @@
            org.sat4j.tools.ModelIterator
            [org.sat4j.specs ContradictionException TimeoutException ISolver IProblem]))
 
+(def ^:dynamic *timeout-on-conflicts* false)
+
 (defn- abs [x] (if (neg? x) (- x) x))
 
 (defn- vec-int [v]
@@ -98,7 +100,9 @@
   ([clauses timeout timeout-atom]
    (when-let [solver (create-solver clauses)]
      (if timeout
-       (.setTimeoutMs solver timeout)
+       (if *timeout-on-conflicts*
+         (.setTimeoutOnConflicts solver timeout)
+         (.setTimeoutMs solver timeout))
        (.setTimeoutOnConflicts solver Integer/MAX_VALUE))
      (when-let [solution (find-model solver timeout-atom)]
        (with-meta (vec solution) (stats-map solver))))))
@@ -127,7 +131,9 @@
      :when-let [solver (create-solver clauses)]
      :let [iterator (ModelIterator. solver)
            _ (if timeout
-               (.setTimeoutMs solver timeout)
+               (if *timeout-on-conflicts*
+                 (.setTimeoutOnConflicts solver timeout)
+                 (.setTimeoutMs solver timeout))
                (.setTimeoutOnConflicts solver Integer/MAX_VALUE))
            solution-iterator (fn [_]
                                (when-let [next-solution (find-next-model iterator timeout-atom)]
@@ -204,7 +210,9 @@
            transformed-clauses (mapv (clause-transformer object->int) clauses)]
      :when-let [solver (create-solver transformed-clauses)]
      :let [_ (if timeout
-               (.setTimeoutMs solver timeout)
+               (if *timeout-on-conflicts*
+                 (.setTimeoutOnConflicts solver timeout)
+                 (.setTimeoutMs solver timeout))
                (.setTimeoutOnConflicts solver Integer/MAX_VALUE))]
      :when-let [solution (find-model solver timeout-atom)]
      :let [untransformed-solution ((clause-transformer int->object) solution)]
@@ -231,7 +239,9 @@
      :when-let [solver (create-solver transformed-clauses)]
      :let [iterator (ModelIterator. solver)
            _ (if timeout
-               (.setTimeoutMs solver timeout)
+               (if *timeout-on-conflicts*
+                 (.setTimeoutOnConflicts solver timeout)
+                 (.setTimeoutMs solver timeout))
                (.setTimeoutOnConflicts solver Integer/MAX_VALUE)),
            solution-iterator (fn [_]
                                (when-let [next-solution (find-next-model iterator timeout-atom)]

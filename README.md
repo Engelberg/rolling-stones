@@ -75,7 +75,7 @@ Both functions take an optional second argument, the timeout in milliseconds.  I
 
 Keep in mind that `solutions` produces a lazy sequence, so if you specify a timeout, you need to do something to force the evaluation of the lazy sequence before the timeout occurs.
 
-Another point to be aware of relating to timeouts: due to the architecture of SAT4J, if you specify a timeout, the solver is not eligible for garbage collection until the timeout time has elapsed, because SAT4J creates a separate timer process that holds a reference to the solver. This could be an issue if you solve a lot of small problems rapidly, each with a long timeout. 
+Another point to be aware of relating to timeouts: due to the architecture of SAT4J, if you specify a timeout, the solver is not eligible for garbage collection until the timeout time has elapsed, because SAT4J creates a separate timer process that holds a reference to the solver. This could be an issue if you solve a lot of small problems rapidly, each with a long timeout. If this poses a problem for you, you can bind the dynamic variable `*timeout-on-conflicts*` to true when invoking your solver, which causes the timeout integer to be interpreted as a limit on the number of conflicts encountered in the solving process, rather than a number of milliseconds -- conflict-based timeouts do not have this GC caveat. Conflict-based timeouts are also useful in scenarios that require reproducible results across different platforms.
 
 Unsatisfiable formulas return nil:
 
