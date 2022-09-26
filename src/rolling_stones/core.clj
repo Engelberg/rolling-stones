@@ -1,4 +1,5 @@
 (ns rolling-stones.core
+  (:refer-clojure :exclude [abs])
   (:require [better-cond.core :as b]
             [clojure.spec.alpha :as s]
             [clojure.pprint])
