@@ -1,5 +1,9 @@
 # Rolling Stones Change Log
 
+## 1.0.3
+
+* Added exclusion for abs to prevent warning on new version of Clojure which has abs in core.
+
 ## 1.0.2
 
 * Updated to use version 2.3.6 of SAT4J

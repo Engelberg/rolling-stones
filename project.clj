@@ -1,4 +1,4 @@
-(defproject rolling-stones "1.0.2"
+(defproject rolling-stones "1.0.3"
   :description "rolling-stones is a Clojure interface to the Sat4j satisfaction solver"
   :url "https://github.com/Engelberg/rolling-stones"
   :license {:name "Eclipse Public License"
